@@ -1,7 +1,7 @@
-// Обновление часов на странице
-function updateClock() {
+// Обновление часов на странице.
+function updateTime() {
   const now = new Date();
-  document.getElementById('clock').innerText = now.toLocaleTimeString();
+  document.getElementById('clock').textContent = now.toLocaleTimeString([], { hour12: false });
 }
 setInterval(updateClock, 1000);
 updateClock();
