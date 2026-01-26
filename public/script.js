@@ -1,54 +1,100 @@
-// Обновление часов на странице.
-function updateTime() {
+// ===============================
+// Обновление часов на странице (24-часовой формат)
+// ===============================
+function updateClock() {
   const now = new Date();
-  document.getElementById('clock').textContent = now.toLocaleTimeString([], { hour12: false });
+  const clockEl = document.getElementById('clock');
+
+  if (!clockEl) return;
+
+  clockEl.textContent = now.toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
 }
-setInterval(updateClock, 1000);
+
+// запускаем сразу
 updateClock();
 
+// обновляем каждую секунду
+setInterval(updateClock, 1000);
+
+
+// ===============================
 // Обновление таблицы с последними 4 записями
+// ===============================
 function updateTable(records) {
   const tbody = document.querySelector('#recordsTable tbody');
-  tbody.innerHTML = ''; // очищаем таблицу
-  const lastRecords = records.slice(-4).reverse(); // последние 4 записи, новые сверху
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  const lastRecords = records.slice(-4).reverse();
+
   lastRecords.forEach(r => {
     const tr = document.createElement('tr');
+
     const tdDate = document.createElement('td');
     const tdTime = document.createElement('td');
+
     tdDate.innerText = r.date;
     tdTime.innerText = r.time;
+
     tr.appendChild(tdDate);
     tr.appendChild(tdTime);
     tbody.appendChild(tr);
   });
 }
 
+
+// ===============================
 // Функция записи времени
+// ===============================
 function recordTime() {
   fetch('/record', { method: 'POST' })
     .then(res => res.json())
     .then(data => {
       if (!data.success) {
-        // Если сервер вернул блокировку, показываем предупреждение
         alert(data.message);
         return;
       }
-      // Если запись успешна, обновляем таблицу
-      fetch('/records')
-        .then(res => res.json())
-        .then(records => updateTable(records));
+
+      return fetch('/records');
+    })
+    .then(res => res && res.json())
+    .then(records => {
+      if (records) {
+        updateTable(records);
+      }
+    })
+    .catch(err => {
+      console.error('Ошибка записи времени:', err);
     });
 }
 
-// Функция очистки всех записей
+
+// ===============================
+// Очистка всех записей
+// ===============================
 function clearRecords() {
   fetch('/clear', { method: 'POST' })
-    .then(() => updateTable([]));
+    .then(() => updateTable([]))
+    .catch(err => {
+      console.error('Ошибка очистки:', err);
+    });
 }
 
-// Автозагрузка последних записей при открытии страницы
+
+// ===============================
+// Загрузка записей при открытии страницы
+// ===============================
 window.addEventListener('DOMContentLoaded', () => {
   fetch('/records')
     .then(res => res.json())
-    .then(records => updateTable(records));
+    .then(records => updateTable(records))
+    .catch(err => {
+      console.error('Ошибка загрузки записей:', err);
+    });
 });
