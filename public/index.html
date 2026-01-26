@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Часы с записью времени</title>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      margin-top: 50px;
+    }
+    #clock {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    button {
+      font-size: 20px;
+      padding: 10px 20px;
+      margin-bottom: 20px;
+    }
+    table {
+      margin: 0 auto;
+      border-collapse: collapse;
+      font-size: 20px;
+    }
+    th, td {
+      border: 1px solid #000;
+      padding: 8px 16px;
+    }
+    th {
+      background-color: #ddd;
+    }
+  </style>
+</head>
+<body>
+
+<div id="clock">--:--:--</div>
+<button onclick="recordTime()">Записать время</button>
+<button onclick="clearRecords()">Очистить таблицу</button>
+
+<table id="recordsTable">
+  <thead>
+    <tr>
+      <th>Дата</th>
+      <th>Время</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- сюда будем вставлять записи -->
+  </tbody>
+</table>
+
+<script src="script.js"></script>
+</body>
+</html>
