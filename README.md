@@ -57,5 +57,3 @@ time-recorder/
 ├─ package.json
 ├─ package-lock.json
 └─ README.md
-
-
