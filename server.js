@@ -1,6 +1,6 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
-const client = require('prom-client'); // ✅ Prometheus
+const client = require('prom-client');
 const app = express();
 const db = new sqlite3.Database('db.sqlite');
 
@@ -57,23 +57,18 @@ app.post('/record', (req, res) => {
   }
   const userData = rateLimitMap[ip];
 
-  // Проверка блокировки
   if (userData.blockedUntil > nowTime) {
     return res.json({
       success: false,
-      message: `Вы заблокированы на ${Math.ceil(
-        (userData.blockedUntil - nowTime) / 1000
-      )} секунд`
+      message: `Вы заблокированы на ${Math.ceil((userData.blockedUntil - nowTime) / 1000)} секунд`
     });
   }
 
-  recordCounter.inc(); // ✅ увеличиваем счетчик Prometheus
+  recordCounter.inc();
 
-  // Очищаем старые клики
   userData.clicks = userData.clicks.filter(t => nowTime - t < INTERVAL_MS);
   userData.clicks.push(nowTime);
 
-  // Проверка лимита
   if (userData.clicks.length > MAX_CLICKS) {
     userData.blockedUntil = nowTime + BLOCK_MS;
     userData.clicks = [];
@@ -83,7 +78,57 @@ app.post('/record', (req, res) => {
     });
   }
 
-  // Запись времени
   const now = new Date();
   const date = now.toLocaleDateString('ru-RU');
-  const time = now.toLocaleTimeString('ru-RU', { hour12: fals
+  const time = now.toLocaleTimeString('ru-RU', { hour12: false });
+
+  db.run(
+    'INSERT INTO records (date, time) VALUES (?, ?)',
+    [date, time],
+    function(err) {
+      if (err) {
+        console.error(err);
+        return res.json({ success: false, message: 'Ошибка записи в базу' });
+      }
+
+      db.run(
+        `
+        DELETE FROM records
+        WHERE id NOT IN (
+          SELECT id FROM records
+          ORDER BY id DESC
+          LIMIT 20
+        )
+        `,
+        [],
+        (err) => {
+          if (err) console.error(err);
+          res.json({ success: true, date, time });
+        }
+      );
+    }
+  );
+});
+
+// Endpoint для получения записей
+app.get('/records', (req, res) => {
+  db.all('SELECT * FROM records ORDER BY id DESC', (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.json([]);
+    }
+    res.json(rows);
+  });
+});
+
+// Endpoint для очистки всех записей
+app.post('/clear', (req, res) => {
+  db.run('DELETE FROM records', () => {
+    res.json({ success: true });
+  });
+});
+
+// Запуск сервера
+app.listen(3000, '0.0.0.0', () => {
+  console.log('Сервер запущен на порту 3000');
+});
