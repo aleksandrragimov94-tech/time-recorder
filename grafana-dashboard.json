@@ -1,0 +1,27 @@
+{
+  "dashboard": {
+    "title": "Time Recorder + Jenkins Dashboard",
+    "schemaVersion": 36,
+    "version": 1,
+    "timezone": "browser",
+    "templating": { "list": [] },
+    "annotations": { "list": [] },
+    "panels": [
+      {
+        "type": "timeseries",
+        "title": "Клики /record",
+        "gridPos": { "x": 0, "y": 0, "w": 24, "h": 9 },
+        "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "mappings": [], "thresholds": { "mode": "absolute", "steps":[{"value":null,"color":"green"},{"value":80,"color":"red"}] } } },
+        "targets": [ { "expr": "record_requests_total", "legendFormat": "Клики", "refId": "A", "datasource": "Prometheus" } ]
+      },
+      {
+        "type": "timeseries",
+        "title": "Jenkins Job Duration (сек)",
+        "gridPos": { "x": 0, "y": 9, "w": 24, "h": 9 },
+        "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "mappings": [], "thresholds": { "mode": "absolute", "steps":[{"value":null,"color":"green"},{"value":60,"color":"red"}] } } },
+        "targets": [ { "expr": "jenkins_job_last_successful_build_duration_seconds", "legendFormat": "{{job}}", "refId": "B", "datasource": "Prometheus" } ]
+      }
+    ]
+  },
+  "overwrite": true
+}
