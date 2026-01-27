@@ -56,14 +56,29 @@ app.post('/record', (req, res) => {
     });
   }
 
-  // ----- Обычная запись времени -----
-  const now = new Date();
-  const date = now.toLocaleDateString('ru-RU');
-  const time = now.toLocaleTimeString();
+// ----- Обычная запись времени -----
+const now = new Date();
+const date = now.toLocaleDateString('ru-RU');
+const time = now.toLocaleTimeString('ru-RU', { hour12: false }); // 24-часовой формат
 
-  db.run('INSERT INTO records (date, time) VALUES (?, ?)', [date, time]);
+db.run('INSERT INTO records (date, time) VALUES (?, ?)', [date, time], function(err) {
+  if (err) {
+    console.error(err);
+    return res.json({ success: false, message: 'Ошибка записи в базу' });
+  }
 
-  res.json({ success: true, date, time });
+  // Оставляем только последние 20 записей
+  db.run(`
+    DELETE FROM records
+    WHERE id NOT IN (
+      SELECT id FROM records
+      ORDER BY id DESC
+      LIMIT 20
+    )
+  `, [], (err) => {
+    if (err) console.error(err);
+    res.json({ success: true, date, time });
+  });
 });
 
 // Endpoint для получения всех записей
