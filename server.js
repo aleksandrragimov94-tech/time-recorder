@@ -86,6 +86,7 @@ app.post('/record', (req, res) => {
   // Запись времени
   const now = new Date();
   const date = now.toLocaleDateString('ru-RU');
+<<<<<<< HEAD
   const time = now.toLocaleTimeString('ru-RU', { hour12: false });
 
   db.run(
@@ -111,9 +112,34 @@ app.post('/record', (req, res) => {
     }
   );
 });
+=======
+  const time = now.toLocaleTimeString('ru-RU', { hour12: false }); // 24-часовой формат
+
+  db.run('INSERT INTO records (date, time) VALUES (?, ?)', [date, time], function(err) {
+    if (err) {
+      console.error(err);
+      return res.json({ success: false, message: 'Ошибка записи в базу' });
+    }
+
+    // Оставляем только последние 20 записей
+    db.run(`
+      DELETE FROM records
+      WHERE id NOT IN (
+        SELECT id FROM records
+        ORDER BY id DESC
+        LIMIT 20
+      )
+    `, [], (err) => {
+      if (err) console.error(err);
+      res.json({ success: true, date, time });
+    });
+  });
+}); // <-- эта строка закрывает app.post('/record', ...)
+>>>>>>> 77d152365978b2fb1cf6b5ad7eaf081b10145f84
 
 // Endpoint для получения записей
 app.get('/records', (req, res) => {
+<<<<<<< HEAD
   db.all(
     'SELECT * FROM records ORDER BY id ASC',
     (err, rows) => {
@@ -121,6 +147,15 @@ app.get('/records', (req, res) => {
       res.json(rows);
     }
   );
+=======
+  db.all('SELECT * FROM records ORDER BY id DESC', (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.json([]);
+    }
+    res.json(rows);
+  });
+>>>>>>> 77d152365978b2fb1cf6b5ad7eaf081b10145f84
 });
 
 // Endpoint для очистки всех записей

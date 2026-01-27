@@ -40,13 +40,17 @@ function updateTable(records) {
     const tdTime = document.createElement('td');
 
     tdDate.innerText = r.date;
-    tdTime.innerText = r.time;
+
+    // Преобразуем время в 24-часовой формат
+    const time = new Date(`1970-01-01T${r.time}`);
+    tdTime.innerText = time.toLocaleTimeString([], { hour12: false });
 
     tr.appendChild(tdDate);
     tr.appendChild(tdTime);
     tbody.appendChild(tr);
   });
 }
+
 
 
 // ===============================
