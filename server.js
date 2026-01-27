@@ -1,10 +1,36 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
+const client = require('prom-client'); // ✅ Prometheus
 const app = express();
 const db = new sqlite3.Database('db.sqlite');
 
 app.use(express.json());
 app.use(express.static('public'));
+
+// ----- Prometheus -----
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
+
+const recordCounter = new client.Counter({
+  name: 'record_requests_total',
+  help: 'Количество POST запросов /record',
+});
+register.registerMetric(recordCounter);
+
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
+});
+
+// ----- Логирование запросов -----
+app.use((req, res, next) => {
+  const now = new Date().toISOString();
+  const ip = req.ip;
+  const method = req.method;
+  const url = req.originalUrl;
+  console.log(`[${now}] ${ip} ${method} ${url}`);
+  next();
+});
 
 // Создаем таблицу records, если ее нет
 db.run(`
@@ -17,9 +43,9 @@ db.run(`
 
 // ----- Настройки защиты от спама -----
 const rateLimitMap = {};
-const MAX_CLICKS = 5;    // максимум кликов за интервал
-const INTERVAL_MS = 3000; // интервал 3 секунды
-const BLOCK_MS = 10000;   // блокировка 10 секунд
+const MAX_CLICKS = 5;
+const INTERVAL_MS = 3000;
+const BLOCK_MS = 10000;
 
 // Endpoint для записи времени
 app.post('/record', (req, res) => {
@@ -29,21 +55,22 @@ app.post('/record', (req, res) => {
   if (!rateLimitMap[ip]) {
     rateLimitMap[ip] = { clicks: [], blockedUntil: 0 };
   }
-
   const userData = rateLimitMap[ip];
 
   // Проверка блокировки
   if (userData.blockedUntil > nowTime) {
     return res.json({
       success: false,
-      message: `Вы заблокированы на ${(userData.blockedUntil - nowTime)/1000} секунд`
+      message: `Вы заблокированы на ${Math.ceil(
+        (userData.blockedUntil - nowTime) / 1000
+      )} секунд`
     });
   }
 
+  recordCounter.inc(); // ✅ увеличиваем счетчик Prometheus
+
   // Очищаем старые клики
   userData.clicks = userData.clicks.filter(t => nowTime - t < INTERVAL_MS);
-
-  // Добавляем текущий клик
   userData.clicks.push(nowTime);
 
   // Проверка лимита
@@ -52,36 +79,58 @@ app.post('/record', (req, res) => {
     userData.clicks = [];
     return res.json({
       success: false,
-      message: `Слишком много кликов! Блокировка на 10 секунд`
+      message: 'Слишком много кликов! Блокировка на 10 секунд'
     });
   }
 
-  // ----- Обычная запись времени -----
+  // Запись времени
   const now = new Date();
   const date = now.toLocaleDateString('ru-RU');
-  const time = now.toLocaleTimeString();
+  const time = now.toLocaleTimeString('ru-RU', { hour12: false });
 
-  db.run('INSERT INTO records (date, time) VALUES (?, ?)', [date, time]);
+  db.run(
+    'INSERT INTO records (date, time) VALUES (?, ?)',
+    [date, time],
+    function (err) {
+      if (err) {
+        console.error(err);
+        return res.json({ success: false });
+      }
 
-  res.json({ success: true, date, time });
+      // Оставляем только последние 20 записей
+      db.run(`
+        DELETE FROM records
+        WHERE id NOT IN (
+          SELECT id FROM records
+          ORDER BY id DESC
+          LIMIT 20
+        )
+      `);
+
+      res.json({ success: true, date, time });
+    }
+  );
 });
 
-// Endpoint для получения всех записей
+// Endpoint для получения записей
 app.get('/records', (req, res) => {
-  db.all('SELECT * FROM records', (err, rows) => {
-    res.json(rows);
-  });
+  db.all(
+    'SELECT * FROM records ORDER BY id ASC',
+    (err, rows) => {
+      if (err) return res.json([]);
+      res.json(rows);
+    }
+  );
 });
 
 // Endpoint для очистки всех записей
 app.post('/clear', (req, res) => {
-  db.run('DELETE FROM records', [], err => {
-    if (err) console.error(err);
+  db.run('DELETE FROM records', () => {
     res.json({ success: true });
   });
 });
 
-// Запускаем сервер на порту 3000 и слушаем все интерфейсы
+// Запуск сервера
 app.listen(3000, '0.0.0.0', () => {
   console.log('Сервер запущен на порту 3000');
 });

@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'time-recorder'
+    static_configs:
+      - targets: ['time-recorder-app:3000']
+
+  - job_name: 'jenkins'
+    metrics_path: '/prometheus'
+    static_configs:
+      - targets: ['167.17.182.146:8080'] 
